@@ -53,7 +53,7 @@ Available options:
 Make sure to add the script to your `$PATH` for convenience.
 
 ```
-git clone https://github.com/janpstrunn/pdfviewer
+git clone https://github.com/anstrinn/pdfviewer
 cd eureka-sh
 chmod +x pdfviewer.sh
 ```
