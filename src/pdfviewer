@@ -1,0 +1,127 @@
+#!/usr/bin/env sh
+
+CACHE_DIR="$HOME/.cache/pdfviewer"
+PAGER="${PAGER:-less}"
+WRAP_FILE=0
+HTML=0
+
+help() {
+  cat <<EOF
+Streamline PDF viewing in the CLI
+
+Usage:
+  pdfviewer [OPTION] [FILE]
+
+Options:
+  -w             Wrap text, if text format is used
+  -p [ARG]       Use alternative PAGER
+  -v [PROFILE]   Use RHVoice as TTS
+
+Commands:
+  fzf [FILE]    Fuzzy find already converted files
+  html [FILE]   Convert to html
+EOF
+}
+
+[ ! -d "$CACHE_DIR" ] && mkdir -p "$CACHE_DIR"
+
+checkHTMLViewer() {
+  [ "$PAGER" != "lynx" ] && [ "$PAGER" != "xdg-open" ] && {
+    if command -v lynx >/dev/null; then
+      PAGER=lynx
+    else
+      PAGER=xdg-open
+    fi
+  }
+}
+
+convertToHTML() {
+  [ ! -f "$CACHE_DIR/$PARSED_FILE.html" ] && mutool draw -F html "$PDF_FILE" >"$CACHE_DIR/$PARSED_FILE.html"
+}
+
+convertTotxt() {
+  [ ! -f "$CACHE_DIR/$PARSED_FILE.txt" ] && mutool draw -F txt "$PDF_FILE" >"$CACHE_DIR/$PARSED_FILE.txt"
+}
+
+_fzf() {
+  PARSED_FILE=$(find "$CACHE_DIR" -type f | fzf)
+  if echo "$PARSED_FILE" | grep ".html" >/dev/null; then
+    PAGER="lynx"
+  fi
+}
+
+voice() {
+  RHVoice-test -p "$PROFILE" -q 200% <"$PARSED_FILE"
+}
+
+main() {
+  if [ "$HTML" -eq 1 ]; then
+    convertToHTML
+    checkHTMLViewer
+    "$PAGER" "$CACHE_DIR/$PARSED_FILE.html"
+  else
+    convertTotxt
+
+    [ -n "$PROFILE" ] && voice
+
+    [ "$WRAP_FILE" -eq 1 ] && fmt -w "$(tput cols)" <"$CACHE_DIR/$PARSED_FILE.txt" | "$PAGER"
+    [ "$WRAP_FILE" -ne 1 ] && "$PAGER" "$CACHE_DIR/$PARSED_FILE.txt"
+  fi
+}
+
+while getopts ":h-w:p:v:" opt; do
+  case "$opt" in
+  h)
+    help
+    exit 0
+    ;;
+  -)
+    break
+    ;;
+  w)
+    WRAP_FILE=1
+    ;;
+  v)
+    PROFILE=$OPTARG
+    ;;
+  p)
+    PAGER=$OPTARG
+    ;;
+  ?)
+    echo "ERROR: Invalid option '-$OPTARG'" >&2
+    exit 1
+    ;;
+  esac
+done
+
+shift $((OPTIND - 1))
+
+while [ "$#" -ne 0 ]; do
+  case "$1" in
+  fzf)
+    _fzf && "$PAGER" "$PARSED_FILE"
+    exit 0
+    ;;
+  --help)
+    help
+    exit 0
+    ;;
+  html)
+    shift
+    HTML=1
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
+
+PDF_FILE="$1"
+PARSED_FILE=$(basename "$PDF_FILE" .pdf)
+
+[ -z "$PDF_FILE" ] && {
+  echo "ERROR: No PDF file specified."
+  exit 1
+}
+
+main "$@"
