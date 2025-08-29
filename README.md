@@ -26,7 +26,7 @@ fzf
 ## Installation
 
 ```
-git clone https://github.com/anstrinn/pdfviewer
+git clone https://github.com/aocoronel/pdfviewer
 chmod +x pdfviewer-sh/src/pdfviewer
 sudo cp pdfviewer-sh/src/pdfviewer /usr/local/bin/
 ```
